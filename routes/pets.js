@@ -30,6 +30,8 @@ const client = new Upload(process.env.S3_BUCKET, {
 // MODELS
 const Pet = require('../models/pet');
 
+const mailer = require('../utils/mailer')
+
 // PET ROUTES
 module.exports = (app) => {
 
@@ -115,8 +117,8 @@ module.exports = (app) => {
       });
   });
 
+  // PURCHASE PET
   app.post('/pets/:id/purchase', (req, res) => {
-    console.log(req.body);
     var stripe = require("stripe")(process.env.PRIVATE_STRIPE_API_KEY);
 
     const token = req.body.stripeToken;
@@ -134,7 +136,12 @@ module.exports = (app) => {
         description: `Purchased ${pet.name}, ${pet.species}`,
         source: token,
       }).then((chg) => {
-        res.redirect(`/pets/${req.params.id}`);
+          const user = {
+            email: req.body.stripeEmail,
+            amount: chg.amount / 100,
+            petName: pet.name
+          };
+          mailer.sendMail(user, req, res);
       })
       .catch(err => {
         console.log('Error:' + err);
